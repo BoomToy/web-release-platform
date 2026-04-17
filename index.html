@@ -340,6 +340,14 @@
             renderCategoryFilters();
             renderTools();
             setupEventListeners();
+
+            // Setup "all" category button (hardcoded in HTML)
+            const allButton = document.querySelector('[data-category="all"]');
+            if (allButton) {
+                allButton.addEventListener('click', () => {
+                    setCategory('all');
+                });
+            }
         }
 
         // Render category filters
