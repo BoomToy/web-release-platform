@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>价格追踪器</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0a0a0f;
+      color: #ffffff;
+      min-height: 100vh;
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 360px;
+      height: 100vh;
+      background: #12121a;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #2a2a3a;
+      overflow: hidden;
+    }
+
+    .sidebar-footer {
+      padding: 16px 24px;
+      background: #12121a;
+      border-top: 1px solid #2a2a3a;
+      text-align: center;
+      font-size: 12px;
+      color: #8a8a9a;
+      flex-shrink: 0;
+    }
+
+    .douyin号 {
+      display: block;
+      margin-top: 4px;
+    }
+
+    .sidebar-header {
+      padding: 24px;
+      background: #1a1a25;
+      flex-shrink: 0;
+    }
+
+    .sidebar-title {
+      font-family: 'Newsreader', serif;
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .add-form {
+      display: flex;
+      gap: 8px;
+    }
+
+    .add-input {
+      flex: 1;
+      height: 48px;
+      padding: 0 16px;
+      background: #0a0a0f;
+      border: 1px solid #2a2a3a;
+      border-radius: 6px;
+      color: #ffffff;
+      font-size: 14px;
+      font-family: 'Geist', sans-serif;
+      transition: border-color 0.2s;
+    }
+
+    .add-input:focus {
+      outline: none;
+      border-color: #00d4ff;
+    }
+
+    .add-input::placeholder {
+      color: #8a8a9a;
+    }
+
+    .add-btn {
+      width: 92px;
+      height: 48px;
+      background: #00d4ff;
+      border: none;
+      border-radius: 6px;
+      color: #0a0a0f;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'Geist', sans-serif;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .add-btn:hover {
+      opacity: 0.9;
+    }
+
+    .add-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Item List */
+    .item-list {
+      flex: 1;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    .empty-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      color: #8a8a9a;
+      font-size: 14px;
+    }
+
+    .item-row {
+      background: #1a1a25;
+      border-radius: 12px;
+      padding: 16px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .item-row:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 212, 255, 0.1);
+    }
+
+    .item-row-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .checkbox {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      border: 2px solid #2a2a3a;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .checkbox.checked {
+      background: #00d4ff;
+      border-color: #00d4ff;
+    }
+
+    .checkbox.checked::after {
+      content: '✓';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #0a0a0f;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .item-name {
+      flex: 1;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .item-name-input {
+      flex: 1;
+      height: 32px;
+      padding: 0 12px;
+      background: #0a0a0f;
+      border: 1px solid #00d4ff;
+      border-radius: 4px;
+      color: #ffffff;
+      font-size: 14px;
+      font-family: 'Geist', sans-serif;
+    }
+
+    .item-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .action-btn {
+      width: 32px;
+      height: 24px;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .action-btn:hover {
+      opacity: 0.8;
+    }
+
+    .btn-edit {
+      background: #2a2a3a;
+      color: #8a8a9a;
+    }
+
+    .btn-delete {
+      background: #ff4757;
+      color: #ffffff;
+    }
+
+    .btn-add-price {
+      background: #00ff88;
+      color: #0a0a0f;
+      font-weight: 600;
+    }
+
+    /* Price History */
+    .price-history {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #2a2a3a;
+      transition: all 0.2s;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .price-history.collapsed {
+      display: none;
+    }
+
+    .btn-expand {
+      background: transparent;
+      color: #8a8a9a;
+      font-size: 10px;
+    }
+
+    .price-record {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 13px;
+      color: #8a8a9a;
+    }
+
+    .price-record-info {
+      display: flex;
+      gap: 12px;
+    }
+
+    .price-date {
+      color: #8a8a9a;
+    }
+
+    .price-value {
+      color: #00d4ff;
+      font-weight: 500;
+    }
+
+    .price-delete {
+      padding: 2px 8px;
+      background: transparent;
+      border: 1px solid #ff4757;
+      border-radius: 3px;
+      color: #ff4757;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .price-delete:hover {
+      background: #ff4757;
+      color: #ffffff;
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .chart-title {
+      font-family: 'Newsreader', serif;
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+
+    .chart-container {
+      flex: 1;
+      background: #12121a;
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+    }
+
+    .chart-empty {
+      color: #8a8a9a;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .chart-canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: #12121a;
+      border-radius: 16px;
+      padding: 32px;
+      width: 360px;
+      border: 1px solid #2a2a3a;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+    }
+
+    .modal-title {
+      font-family: 'Newsreader', serif;
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+
+    .modal-input {
+      width: 100%;
+      height: 56px;
+      padding: 0 20px;
+      background: #0a0a0f;
+      border: 1px solid #2a2a3a;
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 18px;
+      font-family: 'Geist', sans-serif;
+      margin-bottom: 8px;
+      color-scheme: dark;
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      cursor: pointer;
+    }
+
+    .modal-input:focus {
+      outline: none;
+      border-color: #00d4ff;
+    }
+
+    .modal-error {
+      color: #ff4757;
+      font-size: 13px;
+      margin-bottom: 16px;
+      min-height: 20px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .modal-btn {
+      height: 44px;
+      padding: 0 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: 'Geist', sans-serif;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .modal-btn:hover {
+      opacity: 0.9;
+    }
+
+    .modal-btn-cancel {
+      background: #2a2a3a;
+      color: #8a8a9a;
+    }
+
+    .modal-btn-confirm {
+      background: #00d4ff;
+      color: #0a0a0f;
+      font-weight: 600;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .item-row {
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #12121a;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #2a2a3a;
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3a3a4a;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1 class="sidebar-title">物品列表</h1>
+        <div class="add-form">
+          <input type="text" id="newItemInput" class="add-input" placeholder="输入新物品名称...">
+          <button id="addItemBtn" class="add-btn">添加</button>
+        </div>
+        <button id="debugBtn" class="debug-btn" style="margin-top: 12px; width: 100%; height: 36px; background: #2a2a3a; border: none; border-radius: 6px; color: #8a8a9a; font-size: 13px; cursor: pointer;">生成调试数据</button>
+      </div>
+      <div id="itemList" class="item-list">
+        <div class="empty-state">暂无物品，请添加</div>
+      </div>
+      <div class="sidebar-footer">
+        <span>联系作者</span>
+        <span class="douyin号">抖音号：1703644729</span>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <h2 class="chart-title">价格趋势图</h2>
+      <div class="chart-container">
+        <div id="chartEmpty" class="chart-empty">请添加物品和价格记录<br>勾选左侧物品查看趋势</div>
+        <canvas id="trendChart" class="chart-canvas" style="display: none;"></canvas>
+      </div>
+      <button id="resetZoomBtn" class="reset-zoom-btn" style="margin-top: 12px; padding: 8px 16px; background: #1a1a25; border: 1px solid #2a2a3a; border-radius: 6px; color: #8a8a9a; font-size: 13px; cursor: pointer; display: none;">重置缩放</button>
+    </main>
+  </div>
+
+  <!-- Price Modal -->
+  <div id="priceModal" class="modal-overlay">
+    <div class="modal">
+      <h3 class="modal-title">添加价格</h3>
+      <input type="date" id="dateInput" class="modal-input">
+      <input type="number" id="priceInput" class="modal-input" step="0.01" placeholder="输入价格">
+      <div id="priceError" class="modal-error"></div>
+      <div class="modal-actions">
+        <button id="priceCancelBtn" class="modal-btn modal-btn-cancel">取消</button>
+        <button id="priceConfirmBtn" class="modal-btn modal-btn-confirm">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Data Layer
+    const STORAGE_KEY = 'priceTrackerData';
+
+    function generateId() {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    function getCurrentDate() {
+      const now = new Date();
+      return now.toISOString().split('T')[0];
+    }
+
+    function loadData() {
+      const data = localStorage.getItem(STORAGE_KEY);
+      return data ? JSON.parse(data) : { items: [] };
+    }
+
+    function saveData(data) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function getItems() {
+      return loadData().items;
+    }
+
+    function itemNameExists(name, excludeId = null) {
+      return getItems().some(item => item.id !== excludeId && item.name === name);
+    }
+
+    function addItem(name) {
+      const data = loadData();
+      const newItem = {
+        id: generateId(),
+        name: name,
+        priceHistory: []
+      };
+      data.items.push(newItem);
+      saveData(data);
+      return newItem;
+    }
+
+    function updateItemName(id, newName) {
+      const data = loadData();
+      const item = data.items.find(i => i.id === id);
+      if (item) {
+        item.name = newName;
+        saveData(data);
+        return true;
+      }
+      return false;
+    }
+
+    function deleteItem(id) {
+      const data = loadData();
+      data.items = data.items.filter(item => item.id !== id);
+      saveData(data);
+    }
+
+    function addPriceRecord(itemId, price, date) {
+      const data = loadData();
+      const item = data.items.find(i => i.id === itemId);
+      if (item) {
+        item.priceHistory.push({
+          price: parseFloat(price),
+          date: date
+        });
+        item.priceHistory.sort((a, b) => new Date(a.date) - new Date(b.date));
+        saveData(data);
+        return true;
+      }
+      return false;
+    }
+
+    function deletePriceRecord(itemId, priceIndex) {
+      const data = loadData();
+      const item = data.items.find(i => i.id === itemId);
+      if (item && priceIndex >= 0 && priceIndex < item.priceHistory.length) {
+        item.priceHistory.splice(priceIndex, 1);
+        saveData(data);
+        return true;
+      }
+      return false;
+    }
+
+    // State
+    let selectedItemIds = new Set();
+    let editingItemId = null;
+    let addingPriceItemId = null;
+    let chartInstance = null;
+    let expandedItemIds = new Set();
+
+    // Chart colors
+    const CHART_COLORS = [
+      '#00d4ff', '#7b61ff', '#00ff88', '#ffaa00', '#ff4757',
+      '#ff6b9d', '#c44dff', '#4dffea', '#ffa64d', '#4d9fff'
+    ];
+
+    function getChartColor(index) {
+      return CHART_COLORS[index % CHART_COLORS.length];
+    }
+
+    // Render
+    function renderItemList() {
+      const container = document.getElementById('itemList');
+      const items = getItems();
+
+      if (items.length === 0) {
+        container.innerHTML = '<div class="empty-state">暂无物品，请添加</div>';
+        return;
+      }
+
+      container.innerHTML = items.map(item => {
+        const isSelected = selectedItemIds.has(item.id);
+        const isEditing = editingItemId === item.id;
+
+        let nameHtml;
+        if (isEditing) {
+          nameHtml = `<input type="text" class="item-name-input" id="editName_${item.id}" value="${escapeHtml(item.name)}">`;
+        } else {
+          nameHtml = `<span class="item-name" onclick="handleItemClick('${item.id}')">${escapeHtml(item.name)}</span>`;
+        }
+
+        let priceHistoryHtml = '';
+        const isExpanded = expandedItemIds.has(item.id);
+        const priceCount = item.priceHistory.length;
+
+        if (priceCount > 0) {
+          priceHistoryHtml = `<div class="price-history ${isExpanded ? '' : 'collapsed'}">
+            ${item.priceHistory.map((record, index) => `
+              <div class="price-record">
+                <div class="price-record-info">
+                  <span class="price-date">${record.date}</span>
+                  <span class="price-value">¥${record.price.toFixed(2)}</span>
+                </div>
+                <button class="price-delete" onclick="handleDeletePrice('${item.id}', ${index})">删除</button>
+              </div>
+            `).join('')}
+          </div>`;
+        }
+
+        return `
+          <div class="item-row" data-id="${item.id}">
+            <div class="item-row-top">
+              <div class="checkbox ${isSelected ? 'checked' : ''}" onclick="handleCheckbox('${item.id}')"></div>
+              ${nameHtml}
+              <div class="item-actions">
+                ${priceCount > 0 ? `<button class="action-btn btn-expand" onclick="toggleExpand('${item.id}')">${isExpanded ? '▼' : '▶'}</button>` : ''}
+                ${isEditing ? `
+                  <button class="action-btn btn-edit" onclick="confirmEdit('${item.id}')">✓</button>
+                ` : `
+                  <button class="action-btn btn-edit" onclick="handleEdit('${item.id}')">✎</button>
+                `}
+                <button class="action-btn btn-delete" onclick="handleDeleteItem('${item.id}')">×</button>
+                <button class="action-btn btn-add-price" onclick="handleAddPrice('${item.id}')">+</button>
+              </div>
+            </div>
+            ${priceHistoryHtml}
+          </div>
+        `;
+      }).join('');
+
+      if (editingItemId) {
+        const input = document.getElementById(`editName_${editingItemId}`);
+        if (input) {
+          input.focus();
+          input.select();
+          input.onkeypress = (e) => {
+            if (e.key === 'Enter') confirmEdit(editingItemId);
+          };
+        }
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function renderChart() {
+      const chartEmpty = document.getElementById('chartEmpty');
+      const canvas = document.getElementById('trendChart');
+
+      if (selectedItemIds.size === 0) {
+        chartEmpty.style.display = 'block';
+        canvas.style.display = 'none';
+        document.getElementById('resetZoomBtn').style.display = 'none';
+        if (chartInstance) {
+          chartInstance.destroy();
+          chartInstance = null;
+        }
+        return;
+      }
+
+      chartEmpty.style.display = 'none';
+      canvas.style.display = 'block';
+      document.getElementById('resetZoomBtn').style.display = 'block';
+
+      const selectedItems = getItems().filter(item => selectedItemIds.has(item.id));
+
+      const allDates = new Set();
+      selectedItems.forEach(item => {
+        item.priceHistory.forEach(record => {
+          allDates.add(record.date);
+        });
+      });
+
+      if (allDates.size === 0) {
+        chartEmpty.style.display = 'block';
+        chartEmpty.textContent = '该物品暂无价格记录';
+        canvas.style.display = 'none';
+        document.getElementById('resetZoomBtn').style.display = 'none';
+        return;
+      }
+
+      const sortedDates = Array.from(allDates).sort();
+
+      const datasets = selectedItems.map((item, index) => {
+        const data = sortedDates.map(date => {
+          const record = item.priceHistory.find(r => r.date === date);
+          return record ? record.price : null;
+        });
+
+        return {
+          label: item.name,
+          data: data,
+          borderColor: getChartColor(index),
+          backgroundColor: 'transparent',
+          tension: 0.3,
+          spanGaps: true,
+          pointRadius: 6,
+          pointHoverRadius: 8,
+          borderWidth: 3
+        };
+      });
+
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      const ctx = canvas.getContext('2d');
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: sortedDates,
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: {
+                color: '#8a8a9a',
+                font: { family: 'Geist', size: 14 },
+                padding: 20
+              }
+            },
+            tooltip: {
+              backgroundColor: '#1a1a25',
+              titleColor: '#ffffff',
+              bodyColor: '#8a8a9a',
+              borderColor: '#2a2a3a',
+              borderWidth: 1,
+              padding: 12,
+              displayColors: true
+            },
+            zoom: {
+              pan: {
+                enabled: true,
+                mode: 'x'
+              },
+              zoom: {
+                wheel: {
+                  enabled: true
+                },
+                pinch: {
+                  enabled: true
+                },
+                drag: {
+                  enabled: true,
+                  backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                  borderColor: '#00d4ff',
+                  borderWidth: 1
+                },
+                mode: 'x'
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: '日期（拖动或滚轮缩放）',
+                color: '#8a8a9a',
+                font: { family: 'Geist', size: 12 }
+              },
+              grid: { color: '#2a2a3a' },
+              ticks: { color: '#8a8a9a', font: { family: 'Geist' } }
+            },
+            y: {
+              title: {
+                display: true,
+                text: '价格 (¥)',
+                color: '#8a8a9a',
+                font: { family: 'Geist', size: 12 }
+              },
+              grid: { color: '#2a2a3a' },
+              ticks: { color: '#8a8a9a', font: { family: 'Geist' } },
+              beginAtZero: false
+            }
+          },
+          interaction: {
+            mode: 'index',
+            intersect: false
+          }
+        }
+      });
+    }
+
+    // Event Handlers
+    function handleAddItem() {
+      const input = document.getElementById('newItemInput');
+      const name = input.value.trim();
+
+      if (!name) {
+        alert('请输入物品名称');
+        return;
+      }
+
+      if (itemNameExists(name)) {
+        alert('物品已存在');
+        return;
+      }
+
+      addItem(name);
+      input.value = '';
+      renderItemList();
+    }
+
+    function handleCheckbox(itemId) {
+      if (selectedItemIds.has(itemId)) {
+        selectedItemIds.delete(itemId);
+      } else {
+        selectedItemIds.add(itemId);
+      }
+      // 直接更新 checkbox 状态，避免重新渲染整个列表
+      const itemRow = document.querySelector(`.item-row[data-id="${itemId}"]`);
+      if (itemRow) {
+        const checkbox = itemRow.querySelector('.checkbox');
+        if (checkbox) {
+          if (selectedItemIds.has(itemId)) {
+            checkbox.classList.add('checked');
+          } else {
+            checkbox.classList.remove('checked');
+          }
+        }
+      }
+      renderChart();
+    }
+
+    function handleItemClick(itemId) {
+      handleCheckbox(itemId);
+    }
+
+    function toggleExpand(itemId) {
+      if (expandedItemIds.has(itemId)) {
+        expandedItemIds.delete(itemId);
+      } else {
+        expandedItemIds.add(itemId);
+      }
+      renderItemList();
+    }
+
+    function handleEdit(itemId) {
+      editingItemId = itemId;
+      renderItemList();
+    }
+
+    function confirmEdit(itemId) {
+      const input = document.getElementById(`editName_${itemId}`);
+      const newName = input.value.trim();
+
+      if (!newName) {
+        alert('请输入物品名称');
+        return;
+      }
+
+      if (itemNameExists(newName, itemId)) {
+        alert('物品已存在');
+        return;
+      }
+
+      updateItemName(itemId, newName);
+      editingItemId = null;
+      renderItemList();
+      renderChart();
+    }
+
+    function handleDeleteItem(itemId) {
+      if (!confirm('确定要删除这个物品吗？')) return;
+      deleteItem(itemId);
+      selectedItemIds.delete(itemId);
+      renderItemList();
+      renderChart();
+    }
+
+    function handleAddPrice(itemId) {
+      addingPriceItemId = itemId;
+      document.getElementById('dateInput').value = getCurrentDate();
+      document.getElementById('priceInput').value = '';
+      document.getElementById('priceError').textContent = '';
+      document.getElementById('priceModal').classList.add('active');
+      document.getElementById('dateInput').focus();
+    }
+
+    function closePriceModal() {
+      document.getElementById('priceModal').classList.remove('active');
+      addingPriceItemId = null;
+    }
+
+    function handlePriceConfirm() {
+      const dateInput = document.getElementById('dateInput');
+      const priceInput = document.getElementById('priceInput');
+      const priceStr = priceInput.value.trim();
+      const date = dateInput.value;
+      const errorEl = document.getElementById('priceError');
+
+      if (!date) {
+        errorEl.textContent = '请选择日期';
+        return;
+      }
+
+      if (!priceStr) {
+        errorEl.textContent = '请输入价格';
+        return;
+      }
+
+      const price = parseFloat(priceStr);
+      if (isNaN(price) || price <= 0) {
+        errorEl.textContent = '请输入有效价格';
+        return;
+      }
+
+      addPriceRecord(addingPriceItemId, price, date);
+      closePriceModal();
+      renderItemList();
+      renderChart();
+    }
+
+    function handleDeletePrice(itemId, priceIndex) {
+      deletePriceRecord(itemId, priceIndex);
+      renderItemList();
+      renderChart();
+    }
+
+    // Event Listeners
+    document.getElementById('addItemBtn').addEventListener('click', handleAddItem);
+    document.getElementById('newItemInput').addEventListener('keypress', e => {
+      if (e.key === 'Enter') handleAddItem();
+    });
+
+    document.getElementById('priceCancelBtn').addEventListener('click', closePriceModal);
+    document.getElementById('priceConfirmBtn').addEventListener('click', handlePriceConfirm);
+    document.getElementById('priceInput').addEventListener('keypress', e => {
+      if (e.key === 'Enter') handlePriceConfirm();
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        if (editingItemId) {
+          editingItemId = null;
+          renderItemList();
+        }
+        closePriceModal();
+      }
+    });
+
+    document.getElementById('priceModal').addEventListener('click', e => {
+      if (e.target === document.getElementById('priceModal')) {
+        closePriceModal();
+      }
+    });
+
+    // Debug: Generate mock data
+    function generateMockData() {
+      const mockItems = [
+        { name: '鸡蛋', basePrice: 12, variance: 2, trend: 0.02 },
+        { name: '猪肉', basePrice: 25, variance: 3, trend: -0.01 },
+        { name: '牛肉', basePrice: 45, variance: 5, trend: 0.015 },
+        { name: '大米', basePrice: 3.5, variance: 0.3, trend: 0.01 },
+        { name: '白菜', basePrice: 2, variance: 0.5, trend: -0.02 },
+        { name: '土豆', basePrice: 2.5, variance: 0.4, trend: 0.005 },
+        { name: '西红柿', basePrice: 4, variance: 1, trend: 0.02 },
+        { name: '苹果', basePrice: 8, variance: 2, trend: -0.01 },
+        { name: '香蕉', basePrice: 5, variance: 1, trend: 0.008 },
+        { name: '牛奶', basePrice: 6, variance: 0.5, trend: 0.005 },
+        { name: '可乐', basePrice: 3, variance: 0.2, trend: 0 },
+        { name: '面包', basePrice: 5, variance: 1, trend: 0.01 },
+        { name: '豆腐', basePrice: 4, variance: 0.5, trend: -0.005 },
+        { name: '食用油', basePrice: 15, variance: 2, trend: 0.02 },
+        { name: '盐', basePrice: 2, variance: 0.1, trend: 0 }
+      ];
+
+      const data = loadData();
+      const today = new Date();
+      const days = 30;
+
+      mockItems.forEach(item => {
+        if (!itemNameExists(item.name)) {
+          const newItem = {
+            id: generateId(),
+            name: item.name,
+            priceHistory: []
+          };
+
+          for (let i = days; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            // Add trend and random variance
+            const trendFactor = (days - i) * item.trend;
+            const randomFactor = (Math.random() - 0.5) * item.variance;
+            const price = parseFloat((item.basePrice * (1 + trendFactor) + randomFactor).toFixed(2));
+            newItem.priceHistory.push({
+              price: Math.max(0.1, price),
+              date: date.toISOString().split('T')[0]
+            });
+          }
+
+          data.items.push(newItem);
+        }
+      });
+
+      saveData(data);
+      renderItemList();
+      renderChart();
+    }
+
+    document.getElementById('debugBtn').addEventListener('click', generateMockData);
+
+    document.getElementById('resetZoomBtn').addEventListener('click', function() {
+      if (chartInstance) {
+        chartInstance.resetZoom();
+      }
+    });
+
+    // Init
+    renderItemList();
+    renderChart();
+  </script>
+</body>
+</html>
