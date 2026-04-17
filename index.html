@@ -218,7 +218,7 @@
     <section class="px-6 pb-8">
         <div class="max-w-6xl mx-auto">
             <div class="flex flex-wrap gap-3 justify-center" id="categoryFilters">
-                <button class="category-pill active px-4 py-2 rounded-full border border-border-subtle text-sm font-medium" data-category="all">
+                <button class="category-pill active px-4 py-2 rounded-full border border-border-subtle text-sm font-medium" data-category="all" onclick="setCategory('all')">
                     全部
                 </button>
                 <!-- Categories will be inserted here -->
@@ -266,7 +266,6 @@
         // Tool data
         const toolsData = {
             categories: [
-                { id: 'developer', name: '开发者工具', icon: '💻' },
                 { id: 'converter', name: '转换工具', icon: '🔄' },
                 { id: 'generator', name: '生成器', icon: '⚡' },
                 { id: 'formatter', name: '格式化', icon: '✨' },
@@ -321,6 +320,18 @@
                     featured: false,
                     addedAt: '2024-04-17',
                     platforms: ['desktop', 'mobile']
+                },
+                {
+                    id: 'tea-table-match',
+                    name: '智能拼桌工具',
+                    description: '茶馆组局管理工具，支持添加客人信息（姓名/茶费档位/抽烟习惯/社交排斥），智能检测兼容桌位并推荐换位方案，支持强制派桌和本地数据持久化',
+                    url: 'downloads/html/tea-table-match/index.html',
+                    category: 'utility',
+                    tags: ['tea', 'table', 'match', 'seating', 'arrangement', '茶馆', '拼桌'],
+                    icon: '🍵',
+                    featured: false,
+                    addedAt: '2024-04-18',
+                    platforms: ['desktop', 'mobile']
                 }
             ]
         };
@@ -340,14 +351,6 @@
             renderCategoryFilters();
             renderTools();
             setupEventListeners();
-
-            // Setup "all" category button (hardcoded in HTML)
-            const allButton = document.querySelector('[data-category="all"]');
-            if (allButton) {
-                allButton.addEventListener('click', () => {
-                    setCategory('all');
-                });
-            }
         }
 
         // Render category filters
@@ -482,7 +485,7 @@
                             ${tool.name}
                         </h3>
 
-                        <p class="text-text-secondary text-sm mb-4 line-clamp-2">
+                        <p class="text-text-secondary text-sm mb-4 line-clamp-2" title="${tool.description}">
                             ${tool.description}
                         </p>
 
@@ -519,7 +522,7 @@
         // Reset filters
         function resetFilters() {
             searchQuery = '';
-            searchInput.value = '';
+            if (searchInput) searchInput.value = '';
             setCategory('all');
         }
 
