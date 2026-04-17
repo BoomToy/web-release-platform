@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevTools - 开发者工具箱</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Space Grotesk', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        'bg-primary': '#0d0d0d',
+                        'bg-secondary': '#141414',
+                        'bg-tertiary': '#1a1a1a',
+                        'border-subtle': '#2a2a2a',
+                        'border-highlight': '#3a3a3a',
+                        'accent': '#00d4aa',
+                        'accent-secondary': '#f59e0b',
+                        'text-primary': '#f5f5f5',
+                        'text-secondary': '#a3a3a3',
+                        'text-muted': '#737373',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0d0d0d;
+            color: #f5f5f5;
+        }
+
+        /* Noise texture overlay */
+        .noise-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* Smooth scroll behavior */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Card hover effect */
+        .tool-card {
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .tool-card:hover {
+            transform: translateY(-4px);
+            border-color: #3a3a3a;
+            box-shadow: 0 8px 32px rgba(0, 212, 170, 0.1);
+        }
+
+        /* Search input glow */
+        .search-input {
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: #00d4aa;
+            box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.15);
+        }
+
+        /* Category pill */
+        .category-pill {
+            transition: all 0.2s ease;
+        }
+
+        .category-pill:hover {
+            border-color: #3a3a3a;
+        }
+
+        .category-pill.active {
+            background-color: #00d4aa;
+            border-color: #00d4aa;
+            color: #0d0d0d;
+        }
+
+        /* Stagger animation */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-in {
+            animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+        }
+
+        /* Featured badge */
+        .featured-badge {
+            background: linear-gradient(135deg, #00d4aa 0%, #00b894 100%);
+        }
+
+        /* Empty state */
+        .empty-state {
+            display: none;
+        }
+
+        .empty-state.visible {
+            display: flex;
+        }
+
+        /* Decorative corner lines */
+        .corner-decoration {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border: 1px solid #2a2a2a;
+        }
+
+        .corner-decoration.top-left {
+            top: 0;
+            left: 0;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .corner-decoration.top-right {
+            top: 0;
+            right: 0;
+            border-left: none;
+            border-bottom: none;
+        }
+
+        .corner-decoration.bottom-left {
+            bottom: 0;
+            left: 0;
+            border-right: none;
+            border-top: none;
+        }
+
+        .corner-decoration.bottom-right {
+            bottom: 0;
+            right: 0;
+            border-left: none;
+            border-top: none;
+        }
+
+        /* Platform icons styling */
+        .platform-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            background-color: rgba(255, 255, 255, 0.05);
+            color: #737373;
+            transition: all 0.2s ease;
+        }
+
+        .tool-card:hover .platform-icon {
+            background-color: rgba(0, 212, 170, 0.1);
+            color: #00d4aa;
+        }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <!-- Noise overlay -->
+    <div class="noise-overlay"></div>
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 z-50 border-b border-border-subtle bg-bg-primary/80 backdrop-blur-md">
+        <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
+                    <span class="text-bg-primary font-bold text-lg">D</span>
+                </div>
+                <span class="font-semibold text-lg tracking-tight">DevTools</span>
+            </div>
+            <a href="https://github.com" target="_blank" rel="noopener noreferrer"
+               class="text-text-secondary hover:text-text-primary transition-colors">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="relative pt-32 pb-8 px-6">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center">
+                <h1 class="text-4xl md:text-5xl font-semibold mb-3 tracking-tight">
+                    实用工具箱
+                </h1>
+                <p class="text-text-secondary text-lg">
+                    开发者常用工具的集合
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Category Filter -->
+    <section class="px-6 pb-8">
+        <div class="max-w-6xl mx-auto">
+            <div class="flex flex-wrap gap-3 justify-center" id="categoryFilters">
+                <button class="category-pill active px-4 py-2 rounded-full border border-border-subtle text-sm font-medium" data-category="all">
+                    全部
+                </button>
+                <!-- Categories will be inserted here -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Tools Grid -->
+    <section class="px-6 py-8">
+        <div class="max-w-6xl mx-auto">
+            <div id="toolsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Tool cards will be inserted here -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state flex-col items-center justify-center py-20 text-center">
+                <div class="w-16 h-16 rounded-full bg-bg-secondary flex items-center justify-center mb-4">
+                    <svg class="w-8 h-8 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium mb-2">没有找到匹配的工具</h3>
+                <p class="text-text-secondary mb-4">试试其他关键词或查看全部工具</p>
+                <button onclick="resetFilters()" class="text-accent hover:underline font-medium">
+                    显示全部工具
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-border-subtle mt-20 py-8 px-6">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <p class="text-text-muted text-sm">
+                <span class="font-mono">&copy; 2026</span> DevTools. 精心构建的开发者工具箱.
+            </p>
+            <div class="flex items-center gap-2 text-text-muted text-sm">
+                <span class="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
+                由开发者维护
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Tool data
+        const toolsData = {
+            categories: [
+                { id: 'developer', name: '开发者工具', icon: '💻' },
+                { id: 'converter', name: '转换工具', icon: '🔄' },
+                { id: 'generator', name: '生成器', icon: '⚡' },
+                { id: 'formatter', name: '格式化', icon: '✨' },
+                { id: 'security', name: '安全工具', icon: '🔒' },
+                { id: 'utility', name: '实用工具', icon: '🛠️' }
+            ],
+            tools: [
+                {
+                    id: 'json-formatter',
+                    name: 'JSON 格式化',
+                    description: '在线格式化、验证和美化 JSON 数据，支持压缩和转义',
+                    url: '#',
+                    category: 'developer',
+                    tags: ['json', 'formatter', 'developer'],
+                    icon: '📝',
+                    featured: true,
+                    addedAt: '2024-01-15',
+                    platforms: ['desktop', 'mobile']
+                },
+                {
+                    id: 'base64-converter',
+                    name: 'Base64 转换',
+                    description: '快速在文本和 Base64 之间进行编码和解码转换',
+                    url: '#',
+                    category: 'converter',
+                    tags: ['base64', 'encoder', 'decoder'],
+                    icon: '🔐',
+                    featured: false,
+                    addedAt: '2024-01-10',
+                    platforms: ['desktop', 'mobile']
+                },
+                {
+                    id: 'uuid-generator',
+                    name: 'UUID 生成器',
+                    description: '批量生成 UUID v4 唯一标识符，支持多种格式',
+                    url: '#',
+                    category: 'generator',
+                    tags: ['uuid', 'generator', 'id'],
+                    icon: '🎲',
+                    featured: true,
+                    addedAt: '2024-01-08',
+                    platforms: ['desktop', 'mobile']
+                },
+                {
+                    id: 'css-minifier',
+                    name: 'CSS 压缩',
+                    description: '压缩和优化 CSS 代码，减少文件大小',
+                    url: '#',
+                    category: 'formatter',
+                    tags: ['css', 'minify', 'optimizer'],
+                    icon: '🎨',
+                    featured: false,
+                    addedAt: '2024-01-05',
+                    platforms: ['desktop', 'mobile']
+                },
+                {
+                    id: 'jwt-decoder',
+                    name: 'JWT 解码',
+                    description: '在线解码和验证 JWT Token，查看 Header 和 Payload',
+                    url: '#',
+                    category: 'security',
+                    tags: ['jwt', 'token', 'security'],
+                    icon: '🔑',
+                    featured: false,
+                    addedAt: '2024-01-03',
+                    platforms: ['desktop', 'mobile']
+                },
+                {
+                    id: 'color-picker',
+                    name: '颜色选择器',
+                    description: '取色、转换颜色格式，生成调色板',
+                    url: '#',
+                    category: 'utility',
+                    tags: ['color', 'picker', 'palette'],
+                    icon: '🎨',
+                    featured: true,
+                    addedAt: '2024-01-01',
+                    platforms: ['desktop', 'mobile']
+                },
+                {
+                    id: 'markdown-editor',
+                    name: 'Markdown 编辑器',
+                    description: '实时预览的 Markdown 编辑器，支持导出 HTML',
+                    url: '#',
+                    category: 'developer',
+                    tags: ['markdown', 'editor', 'preview'],
+                    icon: '📄',
+                    featured: false,
+                    addedAt: '2023-12-28',
+                    platforms: ['desktop']
+                },
+                {
+                    id: 'timestamp-converter',
+                    name: '时间戳转换',
+                    description: '在 Unix 时间戳和人类可读日期之间转换',
+                    url: '#',
+                    category: 'converter',
+                    tags: ['timestamp', 'date', 'converter'],
+                    icon: '⏰',
+                    featured: false,
+                    addedAt: '2023-12-25',
+                    platforms: ['desktop', 'mobile']
+                },
+                {
+                    id: 'regex-tester',
+                    name: '正则测试器',
+                    description: '在线测试和调试正则表达式，带常用模式库',
+                    url: '#',
+                    category: 'developer',
+                    tags: ['regex', 'tester', 'pattern'],
+                    icon: '🔍',
+                    featured: true,
+                    addedAt: '2023-12-20',
+                    platforms: ['desktop', 'mobile']
+                },
+                {
+                    id: 'backup-script',
+                    name: '自动备份脚本',
+                    description: '定时备份文件到云端，支持增量备份和压缩',
+                    url: '#',
+                    category: 'utility',
+                    tags: ['backup', 'script', 'automation'],
+                    icon: '💾',
+                    featured: false,
+                    addedAt: '2023-12-18',
+                    platforms: ['script']
+                },
+                {
+                    id: 'file-converter',
+                    name: '文件格式转换',
+                    description: '支持图片、文档、视频等多种格式互转',
+                    url: '#',
+                    category: 'converter',
+                    tags: ['converter', 'file', 'format'],
+                    icon: '🔄',
+                    featured: false,
+                    addedAt: '2023-12-15',
+                    platforms: ['desktop']
+                }
+            ]
+        };
+
+        // DOM elements
+        const toolsGrid = document.getElementById('toolsGrid');
+        const categoryFilters = document.getElementById('categoryFilters');
+        const searchInput = document.getElementById('searchInput');
+        const emptyState = document.getElementById('emptyState');
+
+        // State
+        let currentCategory = 'all';
+        let searchQuery = '';
+
+        // Initialize
+        function init() {
+            renderCategoryFilters();
+            renderTools();
+            setupEventListeners();
+        }
+
+        // Render category filters
+        function renderCategoryFilters() {
+            const categories = toolsData.categories;
+            categories.forEach((category, index) => {
+                const button = document.createElement('button');
+                button.className = 'category-pill px-4 py-2 rounded-full border border-border-subtle text-sm font-medium text-text-secondary';
+                button.dataset.category = category.id;
+                button.innerHTML = `${category.icon} ${category.name}`;
+                button.style.animationDelay = `${0.5 + index * 0.1}s`;
+                button.classList.add('animate-in');
+
+                button.addEventListener('click', () => {
+                    setCategory(category.id);
+                });
+
+                categoryFilters.appendChild(button);
+            });
+        }
+
+        // Set active category
+        function setCategory(categoryId) {
+            currentCategory = categoryId;
+
+            // Update button states
+            document.querySelectorAll('.category-pill').forEach(btn => {
+                if (btn.dataset.category === categoryId) {
+                    btn.classList.add('active');
+                    btn.classList.remove('text-text-secondary');
+                } else {
+                    btn.classList.remove('active');
+                    btn.classList.add('text-text-secondary');
+                }
+            });
+
+            renderTools();
+        }
+
+        // Filter tools
+        function getFilteredTools() {
+            return toolsData.tools.filter(tool => {
+                // Category filter
+                if (currentCategory !== 'all' && tool.category !== currentCategory) {
+                    return false;
+                }
+
+                // Search filter
+                if (searchQuery) {
+                    const query = searchQuery.toLowerCase();
+                    const matchesName = tool.name.toLowerCase().includes(query);
+                    const matchesDesc = tool.description.toLowerCase().includes(query);
+                    const matchesTags = tool.tags.some(tag => tag.toLowerCase().includes(query));
+
+                    if (!matchesName && !matchesDesc && !matchesTags) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+        }
+
+        // Render tools grid
+        function renderTools() {
+            const filteredTools = getFilteredTools();
+
+            // Show/hide empty state
+            if (filteredTools.length === 0) {
+                toolsGrid.innerHTML = '';
+                emptyState.classList.add('visible');
+                return;
+            } else {
+                emptyState.classList.remove('visible');
+            }
+
+            // Sort: featured first, then by date
+            const sortedTools = filteredTools.sort((a, b) => {
+                if (a.featured !== b.featured) {
+                    return b.featured ? 1 : -1;
+                }
+                return new Date(b.addedAt) - new Date(a.addedAt);
+            });
+
+            // Platform icons
+            const platformIcons = {
+                desktop: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>',
+                mobile: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>',
+                script: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>'
+            };
+
+            // Render cards
+            toolsGrid.innerHTML = sortedTools.map((tool, index) => {
+                const category = toolsData.categories.find(c => c.id === tool.category);
+
+                // Platform icons HTML
+                let platformsHtml = '';
+                if (tool.platforms && tool.platforms.length > 0) {
+                    const platformTitles = {
+                        desktop: '电脑端',
+                        mobile: '手机端',
+                        script: '脚本'
+                    };
+                    const platformLabel = tool.platforms.map(p => platformTitles[p]).join(' / ');
+
+                    platformsHtml = `
+                        <div class="flex items-center gap-1" title="${platformLabel}">
+                            ${tool.platforms.map(p => `
+                                <span class="platform-icon">${platformIcons[p]}</span>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                return `
+                    <a href="${tool.url}" target="_blank" rel="noopener noreferrer"
+                       class="tool-card block relative bg-bg-secondary border border-border-subtle rounded-xl p-6 animate-in group"
+                       style="animation-delay: ${0.6 + index * 0.05}s">
+
+                        ${tool.featured ? `
+                            <div class="absolute -top-px -left-px featured-badge text-xs font-bold px-2 py-1 rounded-tl-xl rounded-br-lg text-bg-primary">
+                                精选
+                            </div>
+                        ` : ''}
+
+                        <div class="flex items-start justify-between mb-4">
+                            <span class="text-3xl">${tool.icon}</span>
+                            ${platformsHtml}
+                        </div>
+
+                        <h3 class="font-semibold text-lg mb-2 text-text-primary group-hover:text-accent transition-colors">
+                            ${tool.name}
+                        </h3>
+
+                        <p class="text-text-secondary text-sm mb-4 line-clamp-2">
+                            ${tool.description}
+                        </p>
+
+                        <div class="flex items-center justify-between pt-4 border-t border-border-subtle">
+                            <span class="text-xs font-mono text-accent bg-accent/10 px-2 py-1 rounded">
+                                ${category?.name || tool.category}
+                            </span>
+                            <span class="text-text-muted group-hover:text-accent transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                </svg>
+                            </span>
+                        </div>
+                    </a>
+                `;
+            }).join('');
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Search input
+            searchInput.addEventListener('input', (e) => {
+                searchQuery = e.target.value;
+                renderTools();
+            });
+        }
+
+        // Reset filters
+        function resetFilters() {
+            searchQuery = '';
+            searchInput.value = '';
+            setCategory('all');
+        }
+
+        // Start
+        init();
+    </script>
+</body>
+</html>
